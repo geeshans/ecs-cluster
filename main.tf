@@ -167,8 +167,8 @@ resource "aws_ecs_cluster" "main" {
   name = "ecs_cluster"
 }
 
-data "template_file" "task_definition" {
-  template = "${file("${path.module}/task-definition.json")}"
+data "template_file" "app_task_definition" {
+  template = "${file("${path.module}/helloworld-war/task-definition.json")}"
 
   vars {
     image_url        = "ghost:latest"
@@ -178,21 +178,21 @@ data "template_file" "task_definition" {
   }
 }
 
-resource "aws_ecs_task_definition" "ghost" {
-  family                = "tf_example_ghost_td"
-  container_definitions = "${data.template_file.task_definition.rendered}"
+resource "aws_ecs_task_definition" "app" {
+  family                = "app_td"
+  container_definitions = "${data.template_file.app_task_definition.rendered}"
 }
 
-resource "aws_ecs_service" "test" {
-  name            = "tf-example-ecs-ghost"
+resource "aws_ecs_service" "app" {
+  name            = "app-ecs-service"
   cluster         = "${aws_ecs_cluster.main.id}"
-  task_definition = "${aws_ecs_task_definition.ghost.arn}"
+  task_definition = "${aws_ecs_task_definition.app.arn}"
   desired_count   = 1
   iam_role        = "${aws_iam_role.ecs_service.name}"
 
   load_balancer {
-    target_group_arn = "${aws_alb_target_group.test.id}"
-    container_name   = "ghost"
+    target_group_arn = "${aws_alb_target_group.task.id}"
+    container_name   = "app"
     container_port   = "2368"
   }
 
@@ -291,7 +291,7 @@ resource "aws_iam_role_policy" "instance" {
 
 ## ALB
 
-resource "aws_alb_target_group" "test" {
+resource "aws_alb_target_group" "task" {
   name     = "tf-example-ecs-ghost"
   port     = 8080
   protocol = "HTTP"
