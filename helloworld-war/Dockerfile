@@ -4,11 +4,11 @@ MAINTAINER Geeshan Siriwardena <geeshans@gmail.com>
 #Below code was copied from https://github.com/LennonRuangjaroon/alpine-java8-jdk/blob/master/Dockerfile
 # Java Version
 ENV JAVA_VERSION_MAJOR 8
-ENV JAVA_VERSION_MINOR 121
-ENV JAVA_VERSION_BUILD 13
+ENV JAVA_VERSION_MINOR 171
+ENV JAVA_VERSION_BUILD 11
 ENV JAVA_PACKAGE       jdk
-ENV JAVA_SHA256_SUM    97e30203f1aef324a07c94d9d078f5d19bb6c50e638e4492722debca588210bc
-ENV JAVA_URL_ELEMENT   e9e7ea248e2c4826b92b3f075a80e441
+ENV JAVA_SHA256_SUM    d489c36c2b1c056f399fcd3893ee5d80da873ab7d5c73980a7b6cd8b87a6f6ba
+ENV JAVA_URL_ELEMENT   512cd62ec5174c3487ac17c61aaa89e8
 
 # Update curl
 # Install glibc-2.21 which is a hard dependency of Java 8. and see https://github.com/mesosphere/kubernetes-mesos/issues/801
