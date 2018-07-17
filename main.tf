@@ -190,7 +190,7 @@ resource "aws_alb" "main" {
   security_groups = ["${aws_security_group.lb.id}"]
 }
 
-resource "aws_alb_target_group" "app" {
+resource "aws_alb_target_group" "web" {
   name        = "tf-ecs-task-tg"
   port        = 80
   protocol    = "HTTP"
@@ -205,21 +205,12 @@ resource "aws_alb_listener" "front_end" {
   protocol          = "HTTP"
 
   default_action {
-    target_group_arn = "${aws_alb_target_group.app.id}"
+    target_group_arn = "${aws_alb_target_group.web.id}"
     type             = "forward"
   }
 }
 
 ### ECS
-resource "aws_ecr_repository" "web_ecs_repo" {
-  name = "nginx"
-} 
-
-resource "aws_ecr_repository" "app_ecs_repo" {
-  name = "helloworld"
-} 
-
-
 resource "aws_ecs_cluster" "main" {
   name = "tf-ecs-cluster"
 }
@@ -277,8 +268,8 @@ resource "aws_ecs_service" "main" {
   }
 
   load_balancer {
-    target_group_arn = "${aws_alb_target_group.app.id}"
-    container_name   = "helloworld"
+    target_group_arn = "${aws_alb_target_group.web.id}"
+    container_name   = "nginx"
     container_port   = "${var.app_port}"
   }
 

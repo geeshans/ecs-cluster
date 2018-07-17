@@ -20,6 +20,10 @@ variable "app_fargate_cpu" {
   description = "Fargate instance CPU units to provision (1 vCPU = 1024 CPU units) to Application"
   default     = "256"
 }
+variable "web_port" {
+  description = "Port of the Web container"
+  default     = "8080"
+}
 
 variable "app_port" {
   description = "Port of the Application container"
