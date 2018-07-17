@@ -309,7 +309,11 @@ resource "aws_ecs_service" "app" {
 #    security_groups = ["${aws_security_group.ecs_app_sg.id}"]
 #    subnets         = ["${aws_subnet.private.*.id}"]
 #  }
-
+  load_balancer {
+    target_group_arn = "${aws_alb_target_group.app.id}"
+    container_name   = "helloworld"
+    container_port   = "${var.app_port}"
+  }
   network_configuration {
     security_groups  = ["${aws_security_group.ecs_app_sg.id}"]
     subnets          = ["${aws_subnet.public.*.id}"]
