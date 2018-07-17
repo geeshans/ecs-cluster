@@ -244,11 +244,11 @@ data "template_file" "app_task_definition" {
   }
 }
 data "template_file" "web_task_definition" {
-  template = "${file("${path.module}/nginx/task-definition.json")}"
+  template = "${file("${path.module}/webserver/task-definition.json")}"
 
   vars {
-    web_image_url        = "496391058917.dkr.ecr.eu-central-1.amazonaws.com/nginx"
-    web_container_name   = "nginx"
+    web_image_url        = "496391058917.dkr.ecr.eu-central-1.amazonaws.com/webserver"
+    web_container_name   = "webserver"
   }
 }
 
@@ -288,7 +288,7 @@ resource "aws_ecs_service" "web" {
 
   load_balancer {
     target_group_arn = "${aws_alb_target_group.web.id}"
-    container_name   = "nginx"
+    container_name   = "webserver"
     container_port   = "${var.web_port}"
   }
 
