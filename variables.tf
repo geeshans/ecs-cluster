@@ -16,7 +16,7 @@ variable "app_count" {
   default     = "2"
 }
 
-variable app_fargate_cpu" {
+variable "app_fargate_cpu" {
   description = "Fargate instance CPU units to provision (1 vCPU = 1024 CPU units) to Application"
   default     = "256"
 }
