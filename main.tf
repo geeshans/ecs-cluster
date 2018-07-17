@@ -162,8 +162,8 @@ resource "aws_security_group" "lb" {
 }
 
 # Traffic to the ECS Cluster should only come from the ALB
-resource "aws_security_group" "ecs_tasks" {
-  name        = "tf-ecs-tasks-sg"
+resource "aws_security_group" "ecs_web_sg" {
+  name        = "tf-ecs-web-sg"
   description = "Allow inbound access from the ALB only"
   vpc_id      = "${aws_vpc.main.id}"
 
@@ -172,6 +172,26 @@ resource "aws_security_group" "ecs_tasks" {
     from_port       = "${var.web_port}"
     to_port         = "${var.web_port}"
     security_groups = ["${aws_security_group.lb.id}"]
+  }
+
+  egress {
+    protocol    = "-1"
+    from_port   = 0
+    to_port     = 0
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_security_group" "ecs_app_sg" {
+  name        = "tf-ecs-app-sg"
+  description = "Allow inbound access from the Web only"
+  vpc_id      = "${aws_vpc.main.id}"
+
+  ingress {
+    protocol        = "tcp"
+    from_port       = "${var.app_port}"
+    to_port         = "${var.app_port}"
+    security_groups = ["${aws_security_group.ecs_web_sg.id}"]
   }
 
   egress {
@@ -255,14 +275,14 @@ resource "aws_ecs_task_definition" "app" {
 }
 
 resource "aws_ecs_service" "web" {
-  name            = "tf-ecs-service"
+  name            = "tf-ecs-web-service"
   cluster         = "${aws_ecs_cluster.main.id}"
   task_definition = "${aws_ecs_task_definition.web.arn}"
   desired_count   = "${var.web_count}"
   launch_type     = "FARGATE"
 
   network_configuration {
-    security_groups = ["${aws_security_group.ecs_tasks.id}"]
+    security_groups = ["${aws_security_group.ecs_web_sg.id}"]
     subnets         = ["${aws_subnet.private.*.id}"]
   }
 
@@ -275,4 +295,24 @@ resource "aws_ecs_service" "web" {
   depends_on = [
     "aws_alb_listener.front_end",
   ]
+}
+
+
+resource "aws_ecs_service" "app" {
+  name            = "tf-ecs-app-service"
+  cluster         = "${aws_ecs_cluster.main.id}"
+  task_definition = "${aws_ecs_task_definition.app.arn}"
+  desired_count   = "${var.app_count}"
+  launch_type     = "FARGATE"
+
+#  network_configuration {
+#    security_groups = ["${aws_security_group.ecs_app_sg.id}"]
+#    subnets         = ["${aws_subnet.private.*.id}"]
+#  }
+
+  network_configuration {
+    security_groups  = ["${aws_security_group.ecs_app_sg.id}"]
+    subnets          = ["${aws_subnet.public.*.id}"]
+    assign_public_ip = "true"
+  }
 }
