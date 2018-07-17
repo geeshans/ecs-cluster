@@ -1,30 +1,14 @@
 [
   {
-    "name": "${web_container_name}",
-    "links": [
-			"${app_container_name}"
-    ],
-    "image": "${web_image_url}",
+    "name": "${app_container_name}",
+    "image": "${app_image_url}",
     "cpu": 256,
     "memory": 256,
     "essential": true,
     "portMappings": [
       {
-        "containerPort": 80,
+        "containerPort": 8080,
         "protocol": "tcp"
-      }
-    ]
-  },
-  {
-    "name": "${app_container_name}",
-    "image": "${app_image_url}",
-    "cpu": 512,
-    "memory": 256,
-    "essential": true,
-    "portMappings": [
-      {
-        "containerPort": 2368,
-        "hostPort": 443
       }
     ]
   }
