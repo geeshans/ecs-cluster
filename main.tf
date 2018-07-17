@@ -113,6 +113,14 @@ resource "aws_iam_role_policy" "ecs_execution_policy" {
         "elasticloadbalancing:Describe*",
         "elasticloadbalancing:RegisterInstancesWithLoadBalancer",
         "elasticloadbalancing:RegisterTargets"
+        "ecr:GetAuthorizationToken",
+			  "ecr:BatchCheckLayerAvailability",
+			  "ecr:GetDownloadUrlForLayer",
+			  "ecr:GetRepositoryPolicy",
+			  "ecr:DescribeRepositories",
+			  "ecr:ListImages",
+			  "ecr:DescribeImages",
+			  "ecr:BatchGetImage"
       ],
       "Resource": "*"
     }
@@ -248,6 +256,7 @@ resource "aws_ecs_task_definition" "web" {
 
 resource "aws_ecs_task_definition" "app" {
   family                   = "app" 
+  network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = "${var.app_fargate_cpu}"
   memory                   = "${var.app_fargate_memory}"
