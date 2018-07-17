@@ -229,7 +229,6 @@ data "template_file" "web_task_definition" {
   vars {
     web_image_url        = "496391058917.dkr.ecr.eu-central-1.amazonaws.com/nginx"
     web_container_name   = "nginx"
-    app_container_name   = "helloworld"
   }
 }
 
@@ -255,11 +254,11 @@ resource "aws_ecs_task_definition" "app" {
   execution_role_arn       = "${aws_iam_role.ecs_execution_role.arn}"
 }
 
-resource "aws_ecs_service" "main" {
+resource "aws_ecs_service" "web" {
   name            = "tf-ecs-service"
   cluster         = "${aws_ecs_cluster.main.id}"
-  task_definition = "${aws_ecs_task_definition.app.arn}"
-  desired_count   = "${var.app_count}"
+  task_definition = "${aws_ecs_task_definition.web.arn}"
+  desired_count   = "${var.web_count}"
   launch_type     = "FARGATE"
 
   network_configuration {
@@ -270,7 +269,7 @@ resource "aws_ecs_service" "main" {
   load_balancer {
     target_group_arn = "${aws_alb_target_group.web.id}"
     container_name   = "nginx"
-    container_port   = "${var.app_port}"
+    container_port   = "${var.web_port}"
   }
 
   depends_on = [
