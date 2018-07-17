@@ -247,6 +247,7 @@ resource "aws_ecs_task_definition" "web" {
 }
 
 resource "aws_ecs_task_definition" "app" {
+  family                   = "app" 
   requires_compatibilities = ["FARGATE"]
   cpu                      = "${var.app_fargate_cpu}"
   memory                   = "${var.app_fargate_memory}"
