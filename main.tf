@@ -112,7 +112,7 @@ resource "aws_iam_role_policy" "ecs_execution_policy" {
         "elasticloadbalancing:DeregisterTargets",
         "elasticloadbalancing:Describe*",
         "elasticloadbalancing:RegisterInstancesWithLoadBalancer",
-        "elasticloadbalancing:RegisterTargets"
+        "elasticloadbalancing:RegisterTargets",
         "ecr:GetAuthorizationToken",
 			  "ecr:BatchCheckLayerAvailability",
 			  "ecr:GetDownloadUrlForLayer",
