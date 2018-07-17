@@ -187,6 +187,8 @@ resource "aws_ecs_task_definition" "web" {
   memory                   = "${var.web_fargate_memory}"
 
   container_definitions    = "${data.template_file.web_task_definition.rendered}"
+
+  execution_role_arn       = 
 }
 
 resource "aws_ecs_task_definition" "app" {
@@ -213,7 +215,7 @@ resource "aws_ecs_service" "main" {
 
   load_balancer {
     target_group_arn = "${aws_alb_target_group.app.id}"
-    container_name   = "app"
+    container_name   = "helloworld"
     container_port   = "${var.app_port}"
   }
 
