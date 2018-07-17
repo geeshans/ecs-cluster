@@ -75,6 +75,54 @@ resource "aws_route_table_association" "private" {
 
 ### Security
 
+#IAM
+resource "aws_iam_role" "ecs_execution_role" {
+  name = "tf_ecs_execution_role"
+
+  assume_role_policy = <<EOF
+{
+  "Version": "2008-10-17",
+  "Statement": [
+    {
+      "Sid": "",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "ecs-tasks.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_role_policy" "ecs_execution_policy" {
+  name = "ecs_execution_policy"
+  role = "${aws_iam_role.ecs_execution_role.name}"
+
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:Describe*",
+        "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
+        "elasticloadbalancing:DeregisterTargets",
+        "elasticloadbalancing:Describe*",
+        "elasticloadbalancing:RegisterInstancesWithLoadBalancer",
+        "elasticloadbalancing:RegisterTargets"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+EOF
+}
+
+
+
 # ALB Security group
 # This is the group you need to edit if you want to restrict access to your application
 resource "aws_security_group" "lb" {
@@ -155,6 +203,14 @@ resource "aws_alb_listener" "front_end" {
 }
 
 ### ECS
+resource "aws_ecr_repository" "web_ecs_repo" {
+  name = "nginx"
+} 
+
+resource "aws_ecr_repository" "app_ecs_repo" {
+  name = "helloworld"
+} 
+
 
 resource "aws_ecs_cluster" "main" {
   name = "tf-ecs-cluster"
@@ -185,20 +241,17 @@ resource "aws_ecs_task_definition" "web" {
   requires_compatibilities = ["FARGATE"]
   cpu                      = "${var.web_fargate_cpu}"
   memory                   = "${var.web_fargate_memory}"
-
   container_definitions    = "${data.template_file.web_task_definition.rendered}"
+  execution_role_arn       = "${aws_iam_role.ecs_execution_role.arn}"
 
-  execution_role_arn       = 
 }
 
 resource "aws_ecs_task_definition" "app" {
-  family                   = "app"
-  network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = "${var.app_fargate_cpu}"
   memory                   = "${var.app_fargate_memory}"
-
   container_definitions    = "${data.template_file.app_task_definition.rendered}"
+  execution_role_arn       = "${aws_iam_role.ecs_execution_role.arn}"
 }
 
 resource "aws_ecs_service" "main" {
