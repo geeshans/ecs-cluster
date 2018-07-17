@@ -3,324 +3,221 @@ provider "aws" {
   region = "${var.aws_region}"
 }
 
-## EC2
-
 ### Network
 
+# Fetch AZs in the current region
 data "aws_availability_zones" "available" {}
 
 resource "aws_vpc" "main" {
-  cidr_block = "${var.vpc_cider}"
+  cidr_block = "10.16.0.0/16"
 }
 
-resource "aws_subnet" "main" {
+# Create var.az_count private subnets, each in a different AZ
+resource "aws_subnet" "private" {
   count             = "${var.az_count}"
   cidr_block        = "${cidrsubnet(aws_vpc.main.cidr_block, 8, count.index)}"
   availability_zone = "${data.aws_availability_zones.available.names[count.index]}"
   vpc_id            = "${aws_vpc.main.id}"
 }
 
+# Create var.az_count public subnets, each in a different AZ
+resource "aws_subnet" "public" {
+  count                   = "${var.az_count}"
+  cidr_block              = "${cidrsubnet(aws_vpc.main.cidr_block, 8, var.az_count + count.index)}"
+  availability_zone       = "${data.aws_availability_zones.available.names[count.index]}"
+  vpc_id                  = "${aws_vpc.main.id}"
+  map_public_ip_on_launch = true
+}
+
+# IGW for the public subnet
 resource "aws_internet_gateway" "gw" {
   vpc_id = "${aws_vpc.main.id}"
 }
 
-resource "aws_route_table" "r" {
+# Route the public subnet traffic through the IGW
+resource "aws_route" "internet_access" {
+  route_table_id         = "${aws_vpc.main.main_route_table_id}"
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = "${aws_internet_gateway.gw.id}"
+}
+
+# Create a NAT gateway with an EIP for each private subnet to get internet connectivity
+resource "aws_eip" "gw" {
+  count      = "${var.az_count}"
+  vpc        = true
+  depends_on = ["aws_internet_gateway.gw"]
+}
+
+resource "aws_nat_gateway" "gw" {
+  count         = "${var.az_count}"
+  subnet_id     = "${element(aws_subnet.public.*.id, count.index)}"
+  allocation_id = "${element(aws_eip.gw.*.id, count.index)}"
+}
+
+# Create a new route table for the private subnets
+# And make it route non-local traffic through the NAT gateway to the internet
+resource "aws_route_table" "private" {
+  count  = "${var.az_count}"
   vpc_id = "${aws_vpc.main.id}"
 
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = "${aws_internet_gateway.gw.id}"
+    nat_gateway_id = "${element(aws_nat_gateway.gw.*.id, count.index)}"
   }
 }
 
-resource "aws_route_table_association" "a" {
+# Explicitely associate the newly created route tables to the private subnets (so they don't default to the main route table)
+resource "aws_route_table_association" "private" {
   count          = "${var.az_count}"
-  subnet_id      = "${element(aws_subnet.main.*.id, count.index)}"
-  route_table_id = "${aws_route_table.r.id}"
-}
-
-### Compute
-
-resource "aws_autoscaling_group" "app" {
-  name                 = "app-asg"
-  vpc_zone_identifier  = ["${aws_subnet.main.*.id}"]
-  min_size             = "${var.asg_min}"
-  max_size             = "${var.asg_max}"
-  desired_capacity     = "${var.asg_desired}"
-  launch_configuration = "${aws_launch_configuration.app.name}"
-}
-
-data "template_file" "container_instance_base_cloud_config" {
-  template = "${file("${path.module}/cloud-config/cloud-config.yml.tpl")}"
-
-  vars {
-    ecs_cluster_name = "${aws_ecs_cluster.main.name}"
-  }
-}
-
-
-
-data "aws_ami" "ecs_optimized_ami" {
-  most_recent = true
-
-   filter {
-    name   = "name"
-    values = ["amzn-ami-*-amazon-ecs-optimized"]
-  }
-
-  filter {
-    name   = "architecture"
-    values = ["x86_64"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-  
-  filter {
-    name = "owner-alias"
-    values = ["amazon"]
-  }
-}
-
-resource "aws_launch_configuration" "app" {
-  security_groups = [
-    "${aws_security_group.instance_sg.id}",
-  ]
-
-  key_name                    = "${var.key_name}"
-  image_id                    = "${data.aws_ami.ecs_optimized_ami.id}"
-  instance_type               = "${var.instance_type}"
-  iam_instance_profile        = "${aws_iam_instance_profile.app.name}"
-  user_data                   = "${data.template_file.container_instance_base_cloud_config.rendered}"
-
-  associate_public_ip_address = true
-
-  lifecycle {
-    create_before_destroy = true
-  }
+  subnet_id      = "${element(aws_subnet.private.*.id, count.index)}"
+  route_table_id = "${element(aws_route_table.private.*.id, count.index)}"
 }
 
 ### Security
 
-resource "aws_security_group" "lb_sg" {
-  description = "controls access to the Application ELB"
+# ALB Security group
+# This is the group you need to edit if you want to restrict access to your application
+resource "aws_security_group" "lb" {
+  name        = "tf-ecs-alb-sg"
+  description = "Controls access to the ALB"
+  vpc_id      = "${aws_vpc.main.id}"
 
-  vpc_id = "${aws_vpc.main.id}"
-  name   = "ecs-lbsg"
-
-  ingress {
-    protocol    = "tcp"
-    from_port   = 80
-    to_port     = 80
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  ingress = [
+    {
+      protocol    = "tcp"
+      from_port   = 80
+      to_port     = 80
+      cidr_blocks = ["0.0.0.0/0"]
+    },
+    {
+      protocol    = "tcp"
+      from_port   = 80
+      to_port     = 80
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+  ]
 
   egress {
     from_port = 0
     to_port   = 0
     protocol  = "-1"
-
-    cidr_blocks = [
-      "0.0.0.0/0",
-    ]
-  }
-}
-
-resource "aws_security_group" "instance_sg" {
-  description = "controls direct access to application instances"
-  vpc_id      = "${aws_vpc.main.id}"
-  name        = "ecs-instsg"
-
-  ingress {
-    protocol  = "tcp"
-    from_port = 22
-    to_port   = 22
-
-    cidr_blocks = [
-      "${var.admin_cidr_ingress}",
-    ]
-  }
-
-  ingress {
-    protocol  = "tcp"
-    from_port = 8080
-    to_port   = 8080
-
-    security_groups = [
-      "${aws_security_group.lb_sg.id}",
-    ]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
 
-## ECS
+# Traffic to the ECS Cluster should only come from the ALB
+resource "aws_security_group" "ecs_tasks" {
+  name        = "tf-ecs-tasks-sg"
+  description = "Allow inbound access from the ALB only"
+  vpc_id      = "${aws_vpc.main.id}"
 
-resource "aws_ecs_cluster" "main" {
-  name = "ecs_cluster"
-}
+  ingress {
+    protocol        = "tcp"
+    from_port       = "${var.app_port}"
+    to_port         = "${var.app_port}"
+    security_groups = ["${aws_security_group.lb.id}"]
+  }
 
-data "template_file" "app_task_definition" {
-  template = "${file("${path.module}/helloworld-war/task-definition.json")}"
-
-  vars {
-    image_url        = "ghost:latest"
-    container_name   = "ghost"
-    log_group_region = "${var.aws_region}"
-    log_group_name   = "${aws_cloudwatch_log_group.app.name}"
+  egress {
+    protocol    = "-1"
+    from_port   = 0
+    to_port     = 0
+    cidr_blocks = ["0.0.0.0/0"]
   }
 }
 
-resource "aws_ecs_task_definition" "app" {
-  family                = "app_td"
-  container_definitions = "${data.template_file.app_task_definition.rendered}"
-}
-
-resource "aws_ecs_service" "app" {
-  name            = "app-ecs-service"
-  cluster         = "${aws_ecs_cluster.main.id}"
-  task_definition = "${aws_ecs_task_definition.app.arn}"
-  desired_count   = 1
-  iam_role        = "${aws_iam_role.ecs_service.name}"
-
-  load_balancer {
-    target_group_arn = "${aws_alb_target_group.task.id}"
-    container_name   = "app"
-    container_port   = "2368"
-  }
-
-  depends_on = [
-    "aws_iam_role_policy.ecs_service",
-    "aws_alb_listener.front_end",
-  ]
-}
-
-## IAM
-
-resource "aws_iam_role" "ecs_service" {
-  name = "tf_example_ecs_role"
-
-  assume_role_policy = <<EOF
-{
-  "Version": "2008-10-17",
-  "Statement": [
-    {
-      "Sid": "",
-      "Effect": "Allow",
-      "Principal": {
-        "Service": "ecs.amazonaws.com"
-      },
-      "Action": "sts:AssumeRole"
-    }
-  ]
-}
-EOF
-}
-
-resource "aws_iam_role_policy" "ecs_service" {
-  name = "tf_example_ecs_policy"
-  role = "${aws_iam_role.ecs_service.name}"
-
-  policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "ec2:Describe*",
-        "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
-        "elasticloadbalancing:DeregisterTargets",
-        "elasticloadbalancing:Describe*",
-        "elasticloadbalancing:RegisterInstancesWithLoadBalancer",
-        "elasticloadbalancing:RegisterTargets"
-      ],
-      "Resource": "*"
-    }
-  ]
-}
-EOF
-}
-
-resource "aws_iam_instance_profile" "app" {
-  name = "tf-ecs-instprofile"
-  role = "${aws_iam_role.app_instance.name}"
-}
-
-resource "aws_iam_role" "app_instance" {
-  name = "tf-ecs-example-instance-role"
-
-  assume_role_policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "",
-      "Effect": "Allow",
-      "Principal": {
-        "Service": "ec2.amazonaws.com"
-      },
-      "Action": "sts:AssumeRole"
-    }
-  ]
-}
-EOF
-}
-
-data "template_file" "instance_profile" {
-  template = "${file("${path.module}/instance-profile-policy.json")}"
-
-  vars {
-    app_log_group_arn = "${aws_cloudwatch_log_group.app.arn}"
-    ecs_log_group_arn = "${aws_cloudwatch_log_group.ecs.arn}"
-  }
-}
-
-resource "aws_iam_role_policy" "instance" {
-  name   = "TfEcsExampleInstanceRole"
-  role   = "${aws_iam_role.app_instance.name}"
-  policy = "${data.template_file.instance_profile.rendered}"
-}
-
-## ALB
-
-resource "aws_alb_target_group" "task" {
-  name     = "tf-example-ecs-ghost"
-  port     = 8080
-  protocol = "HTTP"
-  vpc_id   = "${aws_vpc.main.id}"
-}
+### ALB
 
 resource "aws_alb" "main" {
-  name            = "tf-example-alb-ecs"
-  subnets         = ["${aws_subnet.main.*.id}"]
-  security_groups = ["${aws_security_group.lb_sg.id}"]
+  name            = "tf-ecs-task-alb"
+  subnets         = ["${aws_subnet.public.*.id}"]
+  security_groups = ["${aws_security_group.lb.id}"]
 }
 
+resource "aws_alb_target_group" "app" {
+  name        = "tf-ecs-task-tg"
+  port        = 80
+  protocol    = "HTTP"
+  vpc_id      = "${aws_vpc.main.id}"
+  target_type = "ip"
+}
+
+# Redirect all traffic from the ALB to the target group
 resource "aws_alb_listener" "front_end" {
   load_balancer_arn = "${aws_alb.main.id}"
   port              = "80"
   protocol          = "HTTP"
 
   default_action {
-    target_group_arn = "${aws_alb_target_group.test.id}"
+    target_group_arn = "${aws_alb_target_group.app.id}"
     type             = "forward"
   }
 }
 
-## CloudWatch Logs
+### ECS
 
-resource "aws_cloudwatch_log_group" "ecs" {
-  name = "tf-ecs-group/ecs-agent"
+resource "aws_ecs_cluster" "main" {
+  name = "tf-ecs-cluster"
 }
 
-resource "aws_cloudwatch_log_group" "app" {
-  name = "tf-ecs-group/app-ghost"
+data "template_file" "app_task_definition" {
+  template = "${file("${path.module}/helloworld-war/task-definition.json")}"
+
+  vars {
+    app_image_url        = "496391058917.dkr.ecr.eu-central-1.amazonaws.com/helloworld"
+    app_container_name   = "helloworld"
+  }
+}
+data "template_file" "web_task_definition" {
+  template = "${file("${path.module}/nginx/task-definition.json")}"
+
+  vars {
+    web_image_url        = "496391058917.dkr.ecr.eu-central-1.amazonaws.com/nginx"
+    web_container_name   = "nginx"
+    app_container_name   = "helloworld"
+  }
+}
+
+
+resource "aws_ecs_task_definition" "web" {
+  family                   = "web"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "${var.web_fargate_cpu}"
+  memory                   = "${var.web_fargate_memory}"
+
+  container_definitions    = "${data.template_file.web_task_definition.rendered}"
+}
+
+resource "aws_ecs_task_definition" "app" {
+  family                   = "app"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "${var.app_fargate_cpu}"
+  memory                   = "${var.app_fargate_memory}"
+
+  container_definitions    = "${data.template_file.app_task_definition.rendered}"
+}
+
+resource "aws_ecs_service" "main" {
+  name            = "tf-ecs-service"
+  cluster         = "${aws_ecs_cluster.main.id}"
+  task_definition = "${aws_ecs_task_definition.app.arn}"
+  desired_count   = "${var.app_count}"
+  launch_type     = "FARGATE"
+
+  network_configuration {
+    security_groups = ["${aws_security_group.ecs_tasks.id}"]
+    subnets         = ["${aws_subnet.private.*.id}"]
+  }
+
+  load_balancer {
+    target_group_arn = "${aws_alb_target_group.app.id}"
+    container_name   = "app"
+    container_port   = "${var.app_port}"
+  }
+
+  depends_on = [
+    "aws_alb_listener.front_end",
+  ]
 }
