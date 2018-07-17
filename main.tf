@@ -169,8 +169,8 @@ resource "aws_security_group" "ecs_tasks" {
 
   ingress {
     protocol        = "tcp"
-    from_port       = "${var.app_port}"
-    to_port         = "${var.app_port}"
+    from_port       = "${var.web_port}"
+    to_port         = "${var.web_port}"
     security_groups = ["${aws_security_group.lb.id}"]
   }
 

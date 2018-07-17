@@ -22,7 +22,7 @@ variable "app_fargate_cpu" {
 }
 variable "web_port" {
   description = "Port of the Web container"
-  default     = "8080"
+  default     = "80"
 }
 
 variable "app_port" {
