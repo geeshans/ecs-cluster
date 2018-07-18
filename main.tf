@@ -29,6 +29,7 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = true
 }
 
+
 # IGW for the public subnet
 resource "aws_internet_gateway" "gw" {
   vpc_id = "${aws_vpc.main.id}"
