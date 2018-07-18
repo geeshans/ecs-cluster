@@ -154,6 +154,14 @@ resource "aws_iam_role_policy" "ecs_execution_policy" {
 EOF
 }
 
+#Cloudwatch Log Group
+resource "aws_cloudwatch_log_group" "web" {
+  name = "web"
+
+  tags {
+    Application = "web"
+  }
+}
 
 
 # ALB Security group
@@ -326,6 +334,7 @@ data "template_file" "web_task_definition" {
   vars {
     web_image_url        = "496391058917.dkr.ecr.eu-central-1.amazonaws.com/webserver"
     web_container_name   = "webserver"
+    log_group            = "${aws_cloudwatch_log_group.web.name}"
   }
 }
 
