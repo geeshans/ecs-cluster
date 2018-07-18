@@ -72,6 +72,30 @@ resource "aws_route_table_association" "private" {
   subnet_id      = "${element(aws_subnet.private.*.id, count.index)}"
   route_table_id = "${element(aws_route_table.private.*.id, count.index)}"
 }
+# Route53 Service Discovery
+#
+resource "aws_service_discovery_private_dns_namespace" "ecs_private_ns" {
+  name        = "hoge.example.local"
+  description = "Service Discovery"
+  vpc         = "${var.vpc_id}"
+}
+
+resource "aws_service_discovery_service" "example" {
+  name = "example"
+  dns_config {
+    namespace_id = "${aws_service_discovery_private_dns_namespace.example.id}"
+    dns_records {
+      ttl = 10
+      type = "A"
+    }
+    #The routing policy that you want to apply to all records that Route 53 creates. Valid Values: MULTIVALUE, WEIGHTED
+    routing_policy = "MULTIVALUE"
+  }
+
+  health_check_custom_config {
+    failure_threshold = 1
+  }
+}s
 
 ### Security
 
@@ -210,9 +234,7 @@ resource "tls_private_key" "example" {
 
 resource "tls_self_signed_cert" "example" {
   key_algorithm   = "ECDSA"
-  private_key      = "${tls_private_key.example.private_key_pem}"
-
-
+  private_key_pem      = "${tls_private_key.example.private_key_pem}"
   subject {
     common_name  = "example.com"
     organization = "ACME Examples, Inc"
@@ -224,11 +246,12 @@ resource "tls_self_signed_cert" "example" {
     "key_encipherment",
     "digital_signature",
     "server_auth",
+    "cert_signing",
   ]
 }
 
 resource "aws_iam_server_certificate" "test_cert" {
-  name = "terraform-test-cert-%d"
+  name = "terraform-test-cert"
   certificate_body = "${tls_self_signed_cert.example.cert_pem}"
   private_key      = "${tls_private_key.example.private_key_pem}"
 }
@@ -336,8 +359,13 @@ resource "aws_ecs_service" "web" {
     container_port   = "${var.web_port}"
   }
 
+  service_registries {
+    registry_arn = "${aws_service_discovery_service.example.arn}"
+    port = "80"
+  }
+
   depends_on = [
-    "aws_alb_listener.front_end",
+    "aws_alb_listener.http",
     "aws_iam_role_policy.ecs_execution_policy"
   ]
 }
@@ -359,6 +387,11 @@ resource "aws_ecs_service" "app" {
     security_groups  = ["${aws_security_group.ecs_app_sg.id}"]
     subnets          = ["${aws_subnet.public.*.id}"]
     assign_public_ip = "true"
+  }
+
+  service_registries {
+    registry_arn = "${aws_service_discovery_service.example.arn}"
+    port = "8080"
   }
 
     depends_on = [
