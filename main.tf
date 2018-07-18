@@ -3,11 +3,12 @@ provider "aws" {
   region = "${var.aws_region}"
 }
 
-### Network
+### NETWORK CONFIGURATIONS ###
 
 # Fetch AZs in the current region
 data "aws_availability_zones" "available" {}
 
+# Create VPC with support for service discovery
 resource "aws_vpc" "main" {
   cidr_block = "10.16.0.0/16"
   enable_dns_support = "true"
@@ -32,7 +33,7 @@ resource "aws_subnet" "public" {
 }
 
 
-# IGW for the public subnet
+# Create Internet Gatway for the public subnet
 resource "aws_internet_gateway" "gw" {
   vpc_id = "${aws_vpc.main.id}"
 }
@@ -75,8 +76,8 @@ resource "aws_route_table_association" "private" {
   subnet_id      = "${element(aws_subnet.private.*.id, count.index)}"
   route_table_id = "${element(aws_route_table.private.*.id, count.index)}"
 }
+
 # Route53 Service Discovery
-#
 resource "aws_service_discovery_private_dns_namespace" "ecs_private_ns" {
   name        = "hoge.example.local"
   description = "Service Discovery"
@@ -91,7 +92,6 @@ resource "aws_service_discovery_service" "example" {
       ttl = 10
       type = "A"
     }
-    #The routing policy that you want to apply to all records that Route 53 creates. Valid Values: MULTIVALUE, WEIGHTED
     routing_policy = "MULTIVALUE"
   }
 
@@ -100,7 +100,7 @@ resource "aws_service_discovery_service" "example" {
   }
 }
 
-### Security
+### SECURITY ###
 
 #IAM
 resource "aws_iam_role" "ecs_execution_role" {
@@ -158,28 +158,11 @@ resource "aws_iam_role_policy" "ecs_execution_policy" {
 EOF
 }
 
-#Cloudwatch Log Group
-resource "aws_cloudwatch_log_group" "web" {
-  name = "web"
 
-  tags {
-    Application = "web"
-    
-  }
-}
-
-resource "aws_cloudwatch_log_group" "app" {
-  name = "app"
-
-  tags {
-    Application = "app"
-    
-  }
-}
 
 
 # ALB Security group
-# This is the group you need to edit if you want to restrict access to your application
+# This is the group to edit if  want to restrict access to application
 resource "aws_security_group" "lb" {
   name        = "tf-ecs-alb-sg"
   description = "Controls access to the ALB"
@@ -240,14 +223,7 @@ resource "aws_security_group" "ecs_app_sg" {
     from_port       = "${var.app_port}"
     to_port         = "${var.app_port}"
     security_groups = ["${aws_security_group.ecs_web_sg.id}"]
-   },
-   {
-     #for testing
-     protocol    = "-1"
-     from_port   = 0
-     to_port     = 0
-     cidr_blocks = ["0.0.0.0/0"]
-    }
+   }
   ]
 
   egress {
@@ -258,8 +234,8 @@ resource "aws_security_group" "ecs_app_sg" {
   }
 }
 
-#DUMMY SSL CERTIFICATIONS
-
+### CERTIFICATES ###
+#Creating a dummy SSL certificate
 resource "tls_private_key" "example" {
   algorithm = "RSA"
 }
@@ -269,10 +245,10 @@ resource "tls_self_signed_cert" "example" {
   private_key_pem      = "${tls_private_key.example.private_key_pem}"
   subject {
     common_name  = "example.com"
-    organization = "ACME Examples, Inc"
+    organization = "Smava Examples, Inc"
   }
 
-  validity_period_hours = 120
+  validity_period_hours = 336
 
   allowed_uses = [
     "key_encipherment",
@@ -288,7 +264,9 @@ resource "aws_iam_server_certificate" "test_cert" {
   private_key      = "${tls_private_key.example.private_key_pem}"
 }
 
-### ALB
+### LOAD BALANCERS ###
+
+#Creating the front end Application Load Balancer
 resource "aws_alb" "main" {
   name            = "tf-ecs-task-alb"
   subnets         = ["${aws_subnet.public.*.id}"]
@@ -303,7 +281,7 @@ resource "aws_alb_target_group" "web" {
   target_type = "ip"
 }
 
-# Redirect all traffic from the ALB to the target group
+# Redirect all traffic on ALB to the target group
 resource "aws_alb_listener" "http" {
   load_balancer_arn = "${aws_alb.main.id}"
   port              = "80"
@@ -329,13 +307,14 @@ resource "aws_alb_listener" "https" {
   }
 }
 
-### ECS
+### CONTAINERS ###
 resource "aws_ecs_cluster" "main" {
   name = "tf-ecs-cluster"
 }
 
+#Container definitions for appserver and webserver
 data "template_file" "app_task_definition" {
-  template = "${file("${path.module}/helloworld-war/task-definition.json")}"
+  template = "${file("${path.module}/appserver/task-definition.json")}"
 
   vars {
     app_image_url        = "496391058917.dkr.ecr.eu-central-1.amazonaws.com/helloworld"
@@ -396,10 +375,6 @@ resource "aws_ecs_service" "web" {
     container_port   = "${var.web_port}"
   }
 
- # service_registries {
- #   registry_arn = "${aws_service_discovery_service.example.arn}"
- # }
-
   depends_on = [
     "aws_alb_listener.http",
     "aws_iam_role_policy.ecs_execution_policy"
@@ -432,4 +407,24 @@ resource "aws_ecs_service" "app" {
     depends_on = [
     "aws_iam_role_policy.ecs_execution_policy"
   ]
+}
+
+### LOGGING ###
+#Cloudwatch Log Group
+resource "aws_cloudwatch_log_group" "web" {
+  name = "webserver"
+
+  tags {
+    Application = "webserver"
+    
+  }
+}
+
+resource "aws_cloudwatch_log_group" "app" {
+  name = "appserver"
+
+  tags {
+    Application = "appserver"
+    
+  }
 }

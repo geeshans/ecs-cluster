@@ -10,7 +10,7 @@
       "options": {
         "awslogs-group": "${log_group}",
         "awslogs-region": "${region}",
-        "awslogs-stream-prefix": "${web_container_name}"
+        "awslogs-stream-prefix": "${app_container_name}"
       }
     },
     "portMappings": [
