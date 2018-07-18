@@ -202,8 +202,38 @@ resource "aws_security_group" "ecs_app_sg" {
   }
 }
 
-### ALB
+#DUMMY SSL CERTIFICATIONS
 
+resource "tls_private_key" "example" {
+  algorithm = "RSA"
+}
+
+resource "tls_self_signed_cert" "example" {
+  key_algorithm   = "ECDSA"
+  private_key      = "${tls_private_key.example.private_key_pem}"
+
+
+  subject {
+    common_name  = "example.com"
+    organization = "ACME Examples, Inc"
+  }
+
+  validity_period_hours = 120
+
+  allowed_uses = [
+    "key_encipherment",
+    "digital_signature",
+    "server_auth",
+  ]
+}
+
+resource "aws_iam_server_certificate" "test_cert" {
+  name = "terraform-test-cert-%d"
+  certificate_body = "${tls_self_signed_cert.example.cert_pem}"
+  private_key      = "${tls_private_key.example.private_key_pem}"
+}
+
+### ALB
 resource "aws_alb" "main" {
   name            = "tf-ecs-task-alb"
   subnets         = ["${aws_subnet.public.*.id}"]
@@ -219,10 +249,24 @@ resource "aws_alb_target_group" "web" {
 }
 
 # Redirect all traffic from the ALB to the target group
-resource "aws_alb_listener" "front_end" {
+resource "aws_alb_listener" "http" {
   load_balancer_arn = "${aws_alb.main.id}"
   port              = "80"
   protocol          = "HTTP"
+
+  default_action {
+    target_group_arn = "${aws_alb_target_group.web.id}"
+    type             = "forward"
+  }
+}
+
+resource "aws_alb_listener" "https" {
+  load_balancer_arn = "${aws_alb.main.id}"
+  port              = "443"
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-2015-05"
+  certificate_arn   = "${aws_iam_server_certificate.test_cert.arn}"
+
 
   default_action {
     target_group_arn = "${aws_alb_target_group.web.id}"
@@ -294,6 +338,7 @@ resource "aws_ecs_service" "web" {
 
   depends_on = [
     "aws_alb_listener.front_end",
+    "aws_iam_role_policy.ecs_execution_policy"
   ]
 }
 
@@ -309,14 +354,14 @@ resource "aws_ecs_service" "app" {
 #    security_groups = ["${aws_security_group.ecs_app_sg.id}"]
 #    subnets         = ["${aws_subnet.private.*.id}"]
 #  }
-  load_balancer {
-    target_group_arn = "${aws_alb_target_group.app.id}"
-    container_name   = "helloworld"
-    container_port   = "${var.app_port}"
-  }
+
   network_configuration {
     security_groups  = ["${aws_security_group.ecs_app_sg.id}"]
     subnets          = ["${aws_subnet.public.*.id}"]
     assign_public_ip = "true"
   }
+
+    depends_on = [
+    "aws_iam_role_policy.ecs_execution_policy"
+  ]
 }
