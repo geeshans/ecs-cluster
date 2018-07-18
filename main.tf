@@ -160,6 +160,7 @@ resource "aws_cloudwatch_log_group" "web" {
 
   tags {
     Application = "web"
+    
   }
 }
 
@@ -335,6 +336,7 @@ data "template_file" "web_task_definition" {
     web_image_url        = "496391058917.dkr.ecr.eu-central-1.amazonaws.com/webserver"
     web_container_name   = "webserver"
     log_group            = "${aws_cloudwatch_log_group.web.name}"
+    region               = "${var.aws_region}"
   }
 }
 
@@ -347,6 +349,7 @@ resource "aws_ecs_task_definition" "web" {
   memory                   = "${var.web_fargate_memory}"
   container_definitions    = "${data.template_file.web_task_definition.rendered}"
   execution_role_arn       = "${aws_iam_role.ecs_execution_role.arn}"
+  
 
 }
 
