@@ -67,6 +67,11 @@ resource "aws_route_table" "private" {
   }
 }
 
+
+resource "oci"  {
+  
+}
+
 # Explicitely associate the newly created route tables to the private subnets (so they don't default to the main route table)
 resource "aws_route_table_association" "private" {
   count          = "${var.az_count}"
@@ -146,6 +151,8 @@ resource "aws_iam_role_policy" "ecs_execution_policy" {
 			  "ecr:ListImages",
 			  "ecr:DescribeImages",
 			  "ecr:BatchGetImage"
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
       ],
       "Resource": "*"
     }
