@@ -171,8 +171,8 @@ resource "aws_security_group" "lb" {
     },
     {
       protocol    = "tcp"
-      from_port   = 80
-      to_port     = 80
+      from_port   = 443
+      to_port     = 443
       cidr_blocks = ["0.0.0.0/0"]
     }
   ]
@@ -211,12 +211,21 @@ resource "aws_security_group" "ecs_app_sg" {
   description = "Allow inbound access from the Web only"
   vpc_id      = "${aws_vpc.main.id}"
 
-  ingress {
+  ingress =[
+   {
     protocol        = "tcp"
     from_port       = "${var.app_port}"
     to_port         = "${var.app_port}"
     security_groups = ["${aws_security_group.ecs_web_sg.id}"]
-  }
+   },
+   {
+     #for testing
+     protocol    = "-1"
+     from_port   = 0
+     to_port     = 0
+     cidr_blocks = ["0.0.0.0/0"]
+    }
+  ]
 
   egress {
     protocol    = "-1"
@@ -233,7 +242,7 @@ resource "tls_private_key" "example" {
 }
 
 resource "tls_self_signed_cert" "example" {
-  key_algorithm   = "ECDSA"
+  key_algorithm   = "RSA"
   private_key_pem      = "${tls_private_key.example.private_key_pem}"
   subject {
     common_name  = "example.com"
@@ -359,10 +368,9 @@ resource "aws_ecs_service" "web" {
     container_port   = "${var.web_port}"
   }
 
-  service_registries {
-    registry_arn = "${aws_service_discovery_service.example.arn}"
-    port = "80"
-  }
+ # service_registries {
+ #   registry_arn = "${aws_service_discovery_service.example.arn}"
+ # }
 
   depends_on = [
     "aws_alb_listener.http",
@@ -391,7 +399,6 @@ resource "aws_ecs_service" "app" {
 
   service_registries {
     registry_arn = "${aws_service_discovery_service.example.arn}"
-    port = "8080"
   }
 
     depends_on = [
