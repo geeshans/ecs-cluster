@@ -10,6 +10,8 @@ data "aws_availability_zones" "available" {}
 
 resource "aws_vpc" "main" {
   cidr_block = "10.16.0.0/16"
+  enable_dns_support = "true"
+  enable_dns_hostnames = "true"
 }
 
 # Create var.az_count private subnets, each in a different AZ
@@ -65,11 +67,6 @@ resource "aws_route_table" "private" {
     cidr_block = "0.0.0.0/0"
     nat_gateway_id = "${element(aws_nat_gateway.gw.*.id, count.index)}"
   }
-}
-
-
-resource "oci"  {
-  
 }
 
 # Explicitely associate the newly created route tables to the private subnets (so they don't default to the main route table)
@@ -150,7 +147,7 @@ resource "aws_iam_role_policy" "ecs_execution_policy" {
 			  "ecr:DescribeRepositories",
 			  "ecr:ListImages",
 			  "ecr:DescribeImages",
-			  "ecr:BatchGetImage"
+			  "ecr:BatchGetImage",
         "logs:CreateLogStream",
         "logs:PutLogEvents"
       ],
