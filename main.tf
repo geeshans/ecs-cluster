@@ -77,13 +77,13 @@ resource "aws_route_table_association" "private" {
 resource "aws_service_discovery_private_dns_namespace" "ecs_private_ns" {
   name        = "hoge.example.local"
   description = "Service Discovery"
-  vpc         = "${var.vpc_id}"
+  vpc         = "${aws_vpc.main.id}"
 }
 
 resource "aws_service_discovery_service" "example" {
   name = "example"
   dns_config {
-    namespace_id = "${aws_service_discovery_private_dns_namespace.example.id}"
+    namespace_id = "${aws_service_discovery_private_dns_namespace.ecs_private_ns.id}"
     dns_records {
       ttl = 10
       type = "A"
@@ -95,7 +95,7 @@ resource "aws_service_discovery_service" "example" {
   health_check_custom_config {
     failure_threshold = 1
   }
-}s
+}
 
 ### Security
 
