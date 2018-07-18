@@ -168,6 +168,15 @@ resource "aws_cloudwatch_log_group" "web" {
   }
 }
 
+resource "aws_cloudwatch_log_group" "app" {
+  name = "app"
+
+  tags {
+    Application = "app"
+    
+  }
+}
+
 
 # ALB Security group
 # This is the group you need to edit if you want to restrict access to your application
@@ -331,6 +340,8 @@ data "template_file" "app_task_definition" {
   vars {
     app_image_url        = "496391058917.dkr.ecr.eu-central-1.amazonaws.com/helloworld"
     app_container_name   = "helloworld"
+    log_group            = "${aws_cloudwatch_log_group.app.name}"
+    region               = "${var.aws_region}"
   }
 }
 data "template_file" "web_task_definition" {

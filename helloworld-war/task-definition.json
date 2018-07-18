@@ -5,6 +5,14 @@
     "cpu": 256,
     "memory": 256,
     "essential": true,
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "${log_group}",
+        "awslogs-region": "${region}",
+        "awslogs-stream-prefix": "${web_container_name}"
+      }
+    },
     "portMappings": [
       {
         "containerPort": 8080,
