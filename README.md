@@ -52,3 +52,7 @@ Outputs:
 webserver_alb_dns = tf-ecs-task-alb-420573605.us-east-1.elb.amazonaws.com
 ```
 
+## Architecture Diagram
+
+![alt text](https://raw.github.com/geeshans/ecs-cluster/blob/master/ecs%20deployment.jpg)
+
