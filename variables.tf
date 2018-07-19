@@ -38,12 +38,12 @@ variable "app_port" {
 }
 variable "app_fargate_cpu" {
   description = "Fargate instance CPU units to provision (1 vCPU = 1024 CPU units) to Application"
-  default     = "256"
+  default     = "512"
 }
 
 variable "app_fargate_memory" {
   description = "Fargate instance memory to provision (in MiB) to Application"
-  default     = "512"
+  default     = "1024"
 }
 
 
