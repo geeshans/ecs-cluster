@@ -1,7 +1,18 @@
+variable "app_image_url" {
+  description = "496391058917.dkr.ecr.eu-central-1.amazonaws.com/helloworld"
+  default     = "us-east-1"
+}
+
+variable "web_image_url" {
+  description = "Image URL for the Web container"
+  default     = "496391058917.dkr.ecr.eu-central-1.amazonaws.com/webserver"
+}
+
 variable "aws_region" {
   description = "The AWS region to create things in."
   default     = "us-east-1"
 }
+
 
 variable "az_count" {
   description = "Number of AZs to cover in a given AWS region"
