@@ -15,7 +15,12 @@ NOTE - You can either export the IAM credentials as below or use an IAM Role if 
 
 ## Usage
 
-Export IAM credentials as environment variables
+Export IAM credentials as environment variables unless you are using AWS roles
+```
+$ export AWS_ACCESS_KEY_ID="anaccesskey"
+$ export AWS_SECRET_ACCESS_KEY="asecretkey"
+$ export AWS_DEFAULT_REGION="us-west-2"
+```
 
 Build the webserver docker images
 ```
