@@ -447,6 +447,7 @@ resource "aws_cloudwatch_metric_alarm" "appserver_memory_high" {
 
   dimensions {
     ClusterName = "${aws_ecs_cluster.main.name}"
+    ServiceName = "${aws_ecs_service.app.name}"
   }
 }
 
