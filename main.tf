@@ -469,8 +469,8 @@ resource "aws_cloudwatch_metric_alarm" "appserver_memory_low" {
 }
 
 resource "aws_appautoscaling_target" "target" {
-  resource_id = "service/${aws_ecs_cluster.main.name}/appserver"
-  role_arn = "${aws_iam_role.ecs_execution_role.name}"
+  resource_id = "ecs/${aws_ecs_cluster.main.name}/${aws_ecs_service.app.name}"
+  role_arn = "${aws_iam_role.ecs_execution_role.arn}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace = "ecs"
   min_capacity = "${var.app_min_capacity}"
@@ -479,7 +479,7 @@ resource "aws_appautoscaling_target" "target" {
 #https://www.terraform.io/docs/providers/aws/r/appautoscaling_policy.html
 resource "aws_appautoscaling_policy" "app_scale_up" {
   name = "appserver-scale-up"
-  resource_id = "service/${aws_ecs_cluster.main.name}/appserver"
+  resource_id = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.app.name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace = "ecs"
   step_scaling_policy_configuration {
@@ -498,7 +498,7 @@ resource "aws_appautoscaling_policy" "app_scale_up" {
 
 resource "aws_appautoscaling_policy" "app_scale_down" {
   name = "appserver-scale-down"
-  resource_id = "service/${aws_ecs_cluster.main.name}/appserver"
+  resource_id = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.app.name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace = "ecs"
   step_scaling_policy_configuration {
