@@ -27,6 +27,16 @@ variable "app_count" {
   default     = "2"
 }
 
+variable "app_min_capacity" {
+  description = "The min capacity of the scalable target for Application Containers"
+  default     = "1"
+}
+
+variable "app_max_capacity" {
+  description = "The max capacity of the scalable target for Application Containers"
+  default     = "4"
+}
+
 variable "web_port" {
   description = "Port of the Web container"
   default     = "80"
