@@ -469,8 +469,8 @@ resource "aws_cloudwatch_metric_alarm" "appserver_memory_low" {
 }
 
 resource "aws_appautoscaling_target" "target" {
-  resource_id = "service/${var.cluster_name}/${var.service_name}"
-  role_arn = "${var.ecs_service_autoscale_role_arn}"
+  resource_id = "service/${aws_ecs_cluster.main.name}/appserver"
+  role_arn = "${aws_iam_role.ecs_execution_role.name}"
   scalable_dimension = "ecs:service:DesiredCount"
   min_capacity = "${var.app_min_capacity}"
   max_capacity = "${var.app_max_capacity}"
@@ -493,7 +493,7 @@ resource "aws_appautoscaling_policy" "app_scale_up" {
 }
 
 resource "aws_appautoscaling_policy" "app_scale_down" {
-  name = "${var.service_name}-scale-down"
+  name = "appserver-scale-down"
   resource_id = "service/${aws_ecs_cluster.main.name}/appserver"
   scalable_dimension = "ecs:service:DesiredCount"
   adjustment_type = "ChangeInCapacity"
