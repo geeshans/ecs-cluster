@@ -440,7 +440,7 @@ resource "aws_cloudwatch_metric_alarm" "appserver_memory_high" {
   metric_name = "MemoryUtilization"
   namespace = "AWS/ECS"
   evaluation_periods = "1"
-  period = "10"
+  period = "120"
   statistic = "Average"
   threshold = "80"
   alarm_actions = ["${aws_appautoscaling_policy.app_scale_up.arn}"]
@@ -458,18 +458,19 @@ resource "aws_cloudwatch_metric_alarm" "appserver_memory_low" {
   evaluation_periods = "1"
   metric_name = "MemoryUtilization"
   namespace = "AWS/ECS"
-  period = "10"
+  period = "60"
   statistic = "Average"
   threshold = "5"
   alarm_actions = ["${aws_appautoscaling_policy.app_scale_down.arn}"]
 
   dimensions {
     ClusterName = "${aws_ecs_cluster.main.name}"
+    ServiceName = "${aws_ecs_service.app.name}"
   }
 }
 
 resource "aws_appautoscaling_target" "target" {
-  resource_id = "ecs/${aws_ecs_cluster.main.name}/${aws_ecs_service.app.name}"
+  resource_id = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.app.name}"
   role_arn = "${aws_iam_role.ecs_execution_role.arn}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace = "ecs"
@@ -484,7 +485,7 @@ resource "aws_appautoscaling_policy" "app_scale_up" {
   service_namespace = "ecs"
   step_scaling_policy_configuration {
     adjustment_type         = "ChangeInCapacity"
-    cooldown                = 20
+    cooldown                = 60
     metric_aggregation_type = "Average"
 
     step_adjustment {
@@ -503,7 +504,7 @@ resource "aws_appautoscaling_policy" "app_scale_down" {
   service_namespace = "ecs"
   step_scaling_policy_configuration {
     adjustment_type         = "ChangeInCapacity"
-    cooldown                = 20
+    cooldown                = 60
     metric_aggregation_type = "Average"
 
     step_adjustment {
