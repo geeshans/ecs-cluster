@@ -15,6 +15,7 @@
     },
     "portMappings": [
       {
+        "hostPort": 80,
         "containerPort": 80,
         "protocol": "tcp"
       }
