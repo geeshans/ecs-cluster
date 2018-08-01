@@ -16,6 +16,7 @@ resource "aws_vpc" "main" {
 }
 
 # Create var.az_count private subnets, each in a different AZ
+#cidrsubnet(iprange, newbits, netnum)
 resource "aws_subnet" "private" {
   count             = "${var.az_count}"
   cidr_block        = "${cidrsubnet(aws_vpc.main.cidr_block, 8, count.index)}"

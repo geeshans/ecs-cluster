@@ -19,7 +19,6 @@ Export IAM credentials as environment variables unless you are using AWS roles
 ```
 $ export AWS_ACCESS_KEY_ID="anaccesskey"
 $ export AWS_SECRET_ACCESS_KEY="asecretkey"
-$ export AWS_DEFAULT_REGION="us-west-2"
 ```
 
 Build the webserver docker images
@@ -50,7 +49,7 @@ Execute the terraform script
 $ terraform apply
 ```
 
-You can access the web application using `webserver_alb_dns` outpu at the end
+You can access the web application using `webserver_alb_dns` output at the end
 ```
 Outputs:
 
