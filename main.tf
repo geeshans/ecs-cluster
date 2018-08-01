@@ -472,6 +472,7 @@ resource "aws_appautoscaling_target" "target" {
   resource_id = "service/${aws_ecs_cluster.main.name}/appserver"
   role_arn = "${aws_iam_role.ecs_execution_role.name}"
   scalable_dimension = "ecs:service:DesiredCount"
+  service_namespace = "ecs"
   min_capacity = "${var.app_min_capacity}"
   max_capacity = "${var.app_max_capacity}"
 }
@@ -480,13 +481,16 @@ resource "aws_appautoscaling_policy" "app_scale_up" {
   name = "appserver-scale-up"
   resource_id = "service/${aws_ecs_cluster.main.name}/appserver"
   scalable_dimension = "ecs:service:DesiredCount"
-  adjustment_type = "ChangeInCapacity"
-  cooldown = 20
-  metric_aggregation_type = "Average"
+  service_namespace = "ecs"
+  step_scaling_policy_configuration {
+    adjustment_type         = "ChangeInCapacity"
+    cooldown                = 20
+    metric_aggregation_type = "Average"
 
-  step_adjustment {
-    metric_interval_lower_bound = 0
-    scaling_adjustment = 1
+    step_adjustment {
+      metric_interval_lower_bound = 0
+      scaling_adjustment          = 1
+    }
   }
 
   depends_on = ["aws_appautoscaling_target.target"]
@@ -496,14 +500,16 @@ resource "aws_appautoscaling_policy" "app_scale_down" {
   name = "appserver-scale-down"
   resource_id = "service/${aws_ecs_cluster.main.name}/appserver"
   scalable_dimension = "ecs:service:DesiredCount"
-  adjustment_type = "ChangeInCapacity"
-  cooldown = 20
-  metric_aggregation_type = "Average"
+  service_namespace = "ecs"
+  step_scaling_policy_configuration {
+    adjustment_type         = "ChangeInCapacity"
+    cooldown                = 20
+    metric_aggregation_type = "Average"
 
-  step_adjustment {
-    metric_interval_upper_bound = 0
-    scaling_adjustment = -1
+    step_adjustment {
+      metric_interval_upper_bound = 0
+      scaling_adjustment          = -1
+    }
   }
-
   depends_on = ["aws_appautoscaling_target.target"]
 }
